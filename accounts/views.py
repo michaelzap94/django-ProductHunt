@@ -8,6 +8,7 @@ from django.contrib import auth
 #================================================================
 
 #'user' is a special keyword, that can be accessed from inside the templates.
+# in html templates using 'user'|'user.is_authenticated' or django .py files using 'request.user'|'request.user.is_authenticated'.
 
 # Create your views here.
 def signup(request):
@@ -19,10 +20,10 @@ def signup(request):
                 return render(request, 'accounts/signup.html', {'error':'Username has been taken.'})
             except User.DoesNotExist:
                 # CREATES a user object in the User Model, so the user can login.
-                user = User.objects.create_user(request.POST['username'], request.POST['password1'])
+                user = User.objects.create_user(username = request.POST['username'], password = request.POST['password1'])
             # WILL LOG THE USER IN, and will save the instance in the STATE cookie 'sessionid',
                 # therefore, you can use user.is_authenticated to check if the user is logged in.
-                # 'user' will be available Globally after doing auth.login(request, user), in html templates or django .py files.
+                # 'user' will be available Globally after doing auth.login(request, user), in html templates using 'user'|'user.is_authenticated' or django .py files using 'request.user'|'request.user.is_authenticated'.
                 auth.login(request, user)
                 return redirect('home')
     else:
@@ -36,7 +37,7 @@ def login(request):
         if user is not None:
             # WILL LOG THE USER IN, and will save the instance in the STATE cookie 'sessionid',
             # therefore, you can use user.is_authenticated to check if the user is logged in.
-            # 'user' will be available Globally after doing auth.login(request, user), in html templates or django .py files.
+            # 'user' will be available Globally after doing auth.login(request, user), in html templates using 'user'|'user.is_authenticated' or django .py files using 'request.user'|'request.user.is_authenticated'.
             auth.login(request, user)
             return redirect('home')
         # authentication failed
