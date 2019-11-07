@@ -11,15 +11,8 @@ from django.contrib.auth.decorators import login_required
 
 # user_passes_test(funtion, login_url = 'home') will accept a function that returns True or False, to check if user passes the test
 # if True continue, otherwise, specify login_url to redirect the user.
-# built-in @user_passes_test requires:
-from functools import wraps
-from urllib.parse import urlparse
-from django.conf import settings
-from django.contrib.auth import REDIRECT_FIELD_NAME
-from django.core.exceptions import PermissionDenied
-from django.shortcuts import resolve_url
-
-
+# built-in @user_passes_test(your_function) will make "your_function" to take as argument 'request.user' only.
+# Therefore, if you need to use more arguments. e.g: product_id, create your own decorator, as I did with '@delete_product_authorization'
 
 def home(request):
     #get all objects in Products
@@ -78,53 +71,26 @@ def upvote(request, product_id):
         #return redirect('/products/'+str(productObj.id)) # I could have also used product_id parameter
         return redirect(request.META['HTTP_REFERER']) # like redirect('back') in node.js
 
+# OWN function, that will be used as a middleware decorator: 
+# WILL check if the user making the request to delete the product was the user that created the product
+def delete_product_authorization(delete):
+    def inner(request,product_id):
+        try:
+            productToDelete = Product.objects.get(id=product_id)
+            creatorId = productToDelete.hunter.id
+            if(creatorId == request.user.id):
+                return delete(request,product_id)
+            else:
+                raise Exception('You are not authorized to delete this product.')
+        except Exception as anyException:
+            print(anyException)
+            return redirect('home')
+    return inner
 
-#===============================================================
-def custom_user_passes_test(test_func, login_url=None, redirect_field_name=REDIRECT_FIELD_NAME):
-    """
-    Decorator for views that checks that the user passes the given test,
-    redirecting to the log-in page if necessary. The test should be a callable
-    that takes the user object and returns True if the user passes.
-    """
-
-    def decorator(view_func):
-        @wraps(view_func)
-        def _wrapped_view(request, *args, **kwargs):
-            if test_func(request.user, *args, **kwargs):
-                return view_func(request, *args, **kwargs)
-            path = request.build_absolute_uri()
-            resolved_login_url = resolve_url(login_url or settings.LOGIN_URL)
-            # If the login url is the same scheme and net location then just
-            # use the path as the "next" url.
-            login_scheme, login_netloc = urlparse(resolved_login_url)[:2]
-            current_scheme, current_netloc = urlparse(path)[:2]
-            if ((not login_scheme or login_scheme == current_scheme) and
-                    (not login_netloc or login_netloc == current_netloc)):
-                path = request.get_full_path()
-            from django.contrib.auth.views import redirect_to_login
-            return redirect_to_login(
-                path, resolved_login_url, redirect_field_name)
-        return _wrapped_view
-    return decorator
-
-#===============================================================
-
-def authorization_required(user, product_id):
-    try:
-        productToDelete = Product.objects.get(id=product_id)
-        creatorId = productToDelete.hunter.id
-        if(creatorId == user.id):
-            return True
-        else:
-            raise Exception('You are not authorized to delete this product.')
-    except Exception as anyException:
-        print(anyException)
-        return False
-#===============================================================
 
 #FIRST CHECK THE USER IS LOGGEDIN, THEN CHECK IF USER IS AUTHORIZED TO PERFORM THIS ACTION
 @login_required(login_url='/accounts/signup')
-@custom_user_passes_test(authorization_required)
+@delete_product_authorization
 def delete(request, product_id):
     #IF YOU WANT TO DELETE:
     # 1ST ALTERNATIVE: SomeModel.objects.filter(id=id).delete(), otherwise
@@ -140,8 +106,6 @@ def delete(request, product_id):
         return render(request,'products/home.html', {'error':anyException})
     else:
         return redirect('home')
-
-# x = custom_user_passes_test(authorization_required)(delete)
 
 
 
