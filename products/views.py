@@ -97,11 +97,7 @@ def delete(request, product_id):
     # delete it from an instance:
     try:
         productToDelete = Product.objects.get(id=product_id)
-        creatorId = productToDelete.hunter.id
-        if(creatorId == request.user.id):
-            productToDelete.delete()
-        else:
-            raise Exception('You are not authorized to delete this product.')
+        productToDelete.delete()
     except Exception as anyException:
         return render(request,'products/home.html', {'error':anyException})
     else:
